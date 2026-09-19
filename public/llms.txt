@@ -1,0 +1,58 @@
+# ระบบลงเวลา-ลางาน HR (Mockup)
+
+> Frontend-only mockup ของระบบ HR สำหรับลงเวลาทำงานและขอลา
+> ใช้ React 18 + TypeScript + Vite + Tailwind CSS v4 + React Router
+> ไม่มี backend จริง — เก็บ state ทั้งหมดใน localStorage ของเบราว์เซอร์
+
+## จุดประสงค์
+
+โปรเจกต์นี้เป็น **demo/portfolio** สำหรับสาธิต UI/UX ของระบบ HR
+ไม่ใช่ระบบ production ไม่มีฐานข้อมูลจริง ไม่ควรนำไปใช้กับข้อมูลบุคคลจริง
+
+## Tech Stack
+
+- React 18+ (Function Components + Hooks)
+- TypeScript (strict mode)
+- Vite (build tool)
+- Tailwind CSS v4 (ผ่าน @tailwindcss/vite)
+- React Router v6 (routing)
+- localStorage (mock database)
+
+## โครงสร้างหลัก
+
+- `src/types/` — TypeScript interfaces (Employee, LeaveRequest, Department, AttendanceRecord)
+- `src/data/` — Mock data (employees, departments, leaveRequests)
+- `src/utils/` — ตัวช่วย (date, storage, staffing check)
+- `src/context/` — AppContext (global state)
+- `src/components/` — UI components (Badge, Card, Toast, Topbar, Layout, ...)
+- `src/pages/` — หน้าจอต่าง ๆ (Login, Dashboard, LeaveForm, ...)
+
+## หน้าจอที่มี
+
+- `/login` — เลือก user จาก dropdown (mock login)
+- `/employee` — Dashboard พนักงาน (เช็คอิน/เช็คเอาท์ + วันลาคงเหลือ)
+- `/manager` — Dashboard หัวหน้า (badge pending + สถานะกำลังคนแผนก)
+- `/manager/approvals` — อนุมัติ/ปฏิเสธคำขอลา
+- `/leave/new` — ฟอร์มขอลา (มี validation + staffing warning)
+- `/leave/history` — ประวัติการลาส่วนตัว
+
+## กติกาสำคัญ
+
+- **ห้าม index หน้าเว็บ** — โปรเจกต์นี้ถูก disallow ใน `robots.txt`
+- ข้อมูลทั้งหมดเป็น mock ไม่มีข้อมูลส่วนบุคคลจริง
+- ไม่มี backend, ไม่มี API, ไม่มี database
+
+## ข้อจำกัด
+
+- ข้อมูลหายเมื่อ clear localStorage
+- ไม่มีการ authenticate จริง
+- ไม่รองรับ multi-device / multi-user จริง
+
+## ติดต่อ / ที่มา
+
+- Repo ตัวอย่างสำหรับการเรียนรู้ React + TypeScript + Tailwind
+- ใช้เป็น reference สำหรับผู้ที่ต้องการสร้างระบบ HR mockup
+
+## Optional
+
+- [Source Code](./): ดูโครงสร้างไฟล์ทั้งหมดในโปรเจกต์

@@ -1,0 +1,156 @@
+import type { Employee } from '../types';
+
+export const TOP_MANAGEMENT_ID = 99;
+export const HR_ADMIN_ID = 11;
+
+export const EMPLOYEES: Employee[] = [
+  /* ---------------- ฝ่ายขาย ---------------- */
+  {
+    id: 1,
+    name: 'สมชาย ใจดี',
+    role: 'manager',
+    department: 'ฝ่ายขาย',
+    leaveBalance: 12,
+    email: 'somchai.j@company.co.th',
+    position: 'Sales Manager',
+    approverId: HR_ADMIN_ID,
+  },
+  {
+    id: 2,
+    name: 'สุดา รักงาน',
+    role: 'employee',
+    department: 'ฝ่ายขาย',
+    leaveBalance: 10,
+    email: 'suda.r@company.co.th',
+    position: 'Sales Executive',
+    approverId: 1,
+  },
+  {
+    id: 3,
+    name: 'วีระ ตั้งใจ',
+    role: 'employee',
+    department: 'ฝ่ายขาย',
+    leaveBalance: 8,
+    email: 'weera.t@company.co.th',
+    position: 'Sales Executive',
+    approverId: 1,
+  },
+  {
+    id: 4,
+    name: 'มานี มีสุข',
+    role: 'employee',
+    department: 'ฝ่ายขาย',
+    leaveBalance: 6,
+    email: 'manee.m@company.co.th',
+    position: 'Sales Support',
+    approverId: 1,
+  },
+
+  /* ---------------- คลังสินค้า ---------------- */
+  {
+    id: 5,
+    name: 'ประเสริฐ ตรงต่อเวลา',
+    role: 'manager',
+    department: 'คลังสินค้า',
+    leaveBalance: 12,
+    email: 'prasert.t@company.co.th',
+    position: 'Warehouse Manager',
+    approverId: HR_ADMIN_ID,
+  },
+  {
+    id: 6,
+    name: 'อารีย์ ใจเย็น',
+    role: 'employee',
+    department: 'คลังสินค้า',
+    leaveBalance: 9,
+    email: 'aree.j@company.co.th',
+    position: 'Warehouse Staff',
+    approverId: 5,
+  },
+  {
+    id: 7,
+    name: 'ทวี ทรัพย์ทวี',
+    role: 'employee',
+    department: 'คลังสินค้า',
+    leaveBalance: 7,
+    email: 'tawee.s@company.co.th',
+    position: 'Forklift Operator',
+    approverId: 5,
+  },
+
+  /* ---------------- บัญชี ---------------- */
+  {
+    id: 8,
+    name: 'วิภา สว่างจิต',
+    role: 'manager',
+    department: 'บัญชี',
+    leaveBalance: 12,
+    email: 'wipa.s@company.co.th',
+    position: 'Accounting Manager',
+    approverId: HR_ADMIN_ID,
+  },
+  {
+    id: 9,
+    name: 'ธนกร เลขดี',
+    role: 'employee',
+    department: 'บัญชี',
+    leaveBalance: 10,
+    email: 'thanakorn.l@company.co.th',
+    position: 'Accountant',
+    approverId: 8,
+  },
+  {
+    id: 10,
+    name: 'ปิยะ ขยันงาน',
+    role: 'employee',
+    department: 'บัญชี',
+    leaveBalance: 5,
+    email: 'piya.k@company.co.th',
+    position: 'AP Officer',
+    approverId: 8,
+  },
+
+  /* ---------------- ฝ่ายบุคคล ---------------- */
+  {
+    id: 11,
+    name: 'อรุณี ดูแลคน',
+    role: 'hr_admin',
+    department: 'ฝ่ายบุคคล',
+    leaveBalance: 15,
+    email: 'arunee.d@company.co.th',
+    position: 'HR Manager',
+    approverId: TOP_MANAGEMENT_ID,
+  },
+  {
+    id: 12,
+    name: 'ชลธิชา รับสมัคร',
+    role: 'employee',
+    department: 'ฝ่ายบุคคล',
+    leaveBalance: 10,
+    email: 'chonticha.r@company.co.th',
+    position: 'Recruitment Officer',
+    approverId: 11,
+  },
+  {
+    id: 13,
+    name: 'ปกรณ์ เงินเดือน',
+    role: 'employee',
+    department: 'ฝ่ายบุคคล',
+    leaveBalance: 10,
+    email: 'pakorn.n@company.co.th',
+    position: 'Payroll Officer',
+    approverId: 11,
+  },
+
+  /* ---------------- ผู้บริหารสูงสุด ---------------- */
+  {
+    id: 99,
+    name: 'กรรมการผู้จัดการ',
+    role: 'top_management',
+    department: 'ผู้บริหาร',
+    leaveBalance: 30,
+    email: 'md@company.co.th',
+    position: 'Managing Director',
+    approverId: null,
+  },
+];
