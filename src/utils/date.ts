@@ -27,17 +27,54 @@ export function addDaysISO(iso: string, days: number): string {
   return toISODate(d);
 }
 
-/** นับจำนวนวันแบบรวมหัว-ท้าย */
+/** ตรวจว่าเป็นวันเสาร์หรืออาทิตย์หรือไม่ */
+export function isWeekend(iso: string): boolean {
+  const day = parseISODate(iso).getDay();
+  return day === 0 || day === 6; // 0 = อาทิตย์, 6 = เสาร์
+}
+
+/**
+ * ✅ แก้ไข: นับจำนวนวันทำงาน (จันทร์-ศุกร์) แบบรวมหัว-ท้าย
+ * ตัดเสาร์-อาทิตย์ออกอัตโนมัติ
+ */
 export function diffInDaysInclusive(startISO: string, endISO: string): number {
+  if (!startISO || !endISO) return 0;
+
+  const start = parseISODate(startISO);
+  const end = parseISODate(endISO);
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
+  if (end < start) return 0;
+
+  let count = 0;
+  const cursor = new Date(start);
+
+  while (cursor <= end) {
+    const day = cursor.getDay();
+    // นับเฉพาะจันทร์(1) - ศุกร์(5)
+    if (day !== 0 && day !== 6) {
+      count++;
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  return count;
+}
+
+/**
+ * ✅ เพิ่มใหม่: นับวันลาทั้งหมด (รวมเสาร์-อาทิตย์)
+ * ใช้สำหรับ check staffing ที่ต้องดูทุกวัน
+ */
+export function diffInCalendarDaysInclusive(startISO: string, endISO: string): number {
   if (!startISO || !endISO) return 0;
   const start = parseISODate(startISO).getTime();
   const end = parseISODate(endISO).getTime();
-  if (Number.isNaN(start) || Number.isNaN(end)) return 0;
+  if (isNaN(start) || isNaN(end)) return 0;
   if (end < start) return 0;
   return Math.round((end - start) / 86_400_000) + 1;
 }
 
-/** คืน array ของทุกวันในช่วง [start, end] */
+/** คืน array ของทุกวันในช่วง [start, end] (รวมเสาร์-อาทิตย์ สำหรับ staffing) */
 export function eachDayInRange(startISO: string, endISO: string): string[] {
   const days: string[] = [];
   if (!startISO || !endISO || endISO < startISO) return days;
@@ -52,7 +89,12 @@ export function eachDayInRange(startISO: string, endISO: string): string[] {
   return days;
 }
 
-/** ตรวจว่าสองช่วงวันที่ทับซ้อนกันหรือไม่ (เทียบ string ISO ได้เลย) */
+/** ✅ เพิ่มใหม่: คืน array เฉพาะวันทำงานในช่วง [start, end] */
+export function eachBusinessDayInRange(startISO: string, endISO: string): string[] {
+  return eachDayInRange(startISO, endISO).filter((d) => !isWeekend(d));
+}
+
+/** ตรวจว่าสองช่วงวันที่ทับซ้อนกันหรือไม่ */
 export function rangesOverlap(
   aStart: string,
   aEnd: string,

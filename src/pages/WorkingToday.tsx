@@ -6,23 +6,43 @@ import { getWorkingStatusForDate } from '../utils/staffing';
 
 export default function WorkingToday() {
   const { user, employees, departments, leaveRequests, attendance } = useApp();
+
+  if (!user) return null;
+
+  // ตรวจสอบสิทธิ์ว่าเป็น HR / ผู้บริหารระดับสูงหรือไม่
+  const isHR = user.role === 'hr_admin' || user.role === 'top_management';
+
   const [date, setDate] = useState<string>(todayISO());
-  const [deptFilter, setDeptFilter] = useState<string>('all');
+  const [deptFilter, setDeptFilter] = useState<string>(isHR ? 'all' : user.department);
   const [search, setSearch] = useState('');
 
+  // คำนวณสถานะการทำงานของพนักงานทั้งหมดในวันที่เลือก
   const allStatus = useMemo(
     () => getWorkingStatusForDate(employees, leaveRequests, date),
     [employees, leaveRequests, date]
   );
 
+  // กรองข้อมูล: ถ้าไม่ใช่ HR จะถูกบังคับให้เห็นเฉพาะแผนกตัวเองเสมอ
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return allStatus.filter((s) => {
-      if (deptFilter !== 'all' && s.employee.department !== deptFilter) return false;
-      if (q && !s.employee.name.toLowerCase().includes(q)) return false;
+      // 🔒 สิทธิ์ระดับหัวหน้าแผนก/พนักงานทั่วไป: บังคับกรองเฉพาะแผนกตนเอง
+      if (!isHR && s.employee.department !== user.department) {
+        return false;
+      }
+
+      // 🔓 สิทธิ์ระดับ HR: กรองตามตัวเลือก Dropdown
+      if (isHR && deptFilter !== 'all' && s.employee.department !== deptFilter) {
+        return false;
+      }
+
+      if (q && !s.employee.name.toLowerCase().includes(q)) {
+        return false;
+      }
+
       return true;
     });
-  }, [allStatus, deptFilter, search]);
+  }, [allStatus, isHR, user.department, deptFilter, search]);
 
   const onLeave = filtered.filter((s) => s.status === 'on_leave');
   const working = filtered.filter((s) => s.status === 'working');
@@ -40,8 +60,6 @@ export default function WorkingToday() {
     );
   }, [filtered]);
 
-  if (!user) return null;
-
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-4 py-6">
       {/* Header */}
@@ -50,12 +68,15 @@ export default function WorkingToday() {
           ใครลาวันนี้ / ใครทำงานอยู่
         </h1>
         <p className="mt-1 text-sm text-slate-500">
-          ตรวจสอบสถานะการทำงานประจำวัน · {formatThaiDate(date)}
+          ตรวจสอบสถานะการทำงานประจำวัน ·{' '}
+          {isHR ? 'ภาพรวมทุกแผนก' : `เฉพาะแผนก ${user.department}`} ·{' '}
+          {formatThaiDate(date)}
         </p>
       </div>
 
       {/* แถบตัวกรอง */}
       <div className="grid grid-cols-1 gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:grid-cols-3">
+        {/* ตัวเลือกวันที่ */}
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-600">
             เลือกวันที่
@@ -67,26 +88,39 @@ export default function WorkingToday() {
             className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
           />
         </div>
+
+        {/* ตัวเลือกแผนก */}
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-600">
             แผนก
           </label>
-          <select
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
-          >
-            <option value="all">ทุกแผนก</option>
-            {departments.map((d) => (
-              <option key={d.name} value={d.name}>
-                {d.name}
-              </option>
-            ))}
-          </select>
+          {isHR ? (
+            <select
+              value={deptFilter}
+              onChange={(e) => setDeptFilter(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-sm text-slate-800 outline-none focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100"
+            >
+              <option value="all">ทุกแผนก (ภาพรวม)</option>
+              {departments.map((d) => (
+                <option key={d.name} value={d.name}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={`แผนก ${user.department} (สิทธิ์เฉพาะแผนก)`}
+              disabled
+              className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500 outline-none cursor-not-allowed"
+            />
+          )}
         </div>
+
+        {/* ค้นหาชื่อ */}
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-600">
-            ค้นหาชื่อ
+            ค้นหาชื่อพนักงาน
           </label>
           <input
             type="search"
@@ -101,19 +135,27 @@ export default function WorkingToday() {
       {/* สรุปตัวเลข */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500">พนักงานทั้งหมด</span>
+          <span className="text-xs font-semibold text-slate-500">
+            {isHR ? 'พนักงานตามเงื่อนไข' : `พนักงานแผนก ${user.department}`}
+          </span>
           <p className="mt-1 text-2xl font-bold text-slate-900">{total} คน</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <span className="text-xs font-semibold text-emerald-600">ปฏิบัติงานวันนี้</span>
           <p className="mt-1 text-2xl font-bold text-slate-900">
-            {working.length} <span className="text-xs font-normal text-slate-500">({total > 0 ? Math.round((working.length / total) * 100) : 0}%)</span>
+            {working.length}{' '}
+            <span className="text-xs font-normal text-slate-500">
+              ({total > 0 ? Math.round((working.length / total) * 100) : 0}%)
+            </span>
           </p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
           <span className="text-xs font-semibold text-amber-600">ลางานวันนี้</span>
           <p className="mt-1 text-2xl font-bold text-slate-900">
-            {onLeave.length} <span className="text-xs font-normal text-slate-500">({total > 0 ? Math.round((onLeave.length / total) * 100) : 0}%)</span>
+            {onLeave.length}{' '}
+            <span className="text-xs font-normal text-slate-500">
+              ({total > 0 ? Math.round((onLeave.length / total) * 100) : 0}%)
+            </span>
           </p>
         </div>
       </div>
@@ -123,7 +165,10 @@ export default function WorkingToday() {
         <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
           <div className="flex items-center gap-2 font-bold text-amber-900">
             <span>🌴</span>
-            <span className="text-sm">พนักงานที่ลาวันนี้ ({onLeave.length} คน)</span>
+            <span className="text-sm">
+              พนักงานที่ลาวันนี้ ({onLeave.length} คน)
+              {!isHR && ` · แผนก ${user.department}`}
+            </span>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             {onLeave.map((s) => (
@@ -144,7 +189,7 @@ export default function WorkingToday() {
       {/* รายชื่อแยกตามแผนก */}
       {groupedByDept.length === 0 ? (
         <div className="rounded-2xl border border-slate-200 bg-white py-12 text-center text-sm text-slate-400">
-          ไม่พบข้อมูลตามเงื่อนไข
+          ไม่พบข้อมูลตามเงื่อนไขที่เลือก
         </div>
       ) : (
         <div className="space-y-4">
@@ -205,16 +250,21 @@ export default function WorkingToday() {
                             <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-600">
                               <LeaveTypeBadge type={s.leaveRequest.leaveType} />
                               <span>
-                                {formatThaiDate(s.leaveRequest.startDate)} – {formatThaiDate(s.leaveRequest.endDate)}
+                                {formatThaiDate(s.leaveRequest.startDate)} –{' '}
+                                {formatThaiDate(s.leaveRequest.endDate)}
                               </span>
                               <span className="text-slate-400">·</span>
-                              <span className="italic text-slate-500">"{s.leaveRequest.reason}"</span>
+                              <span className="italic text-slate-500">
+                                "{s.leaveRequest.reason}"
+                              </span>
                             </div>
                           ) : (
                             <p className="mt-1 text-xs text-slate-400">
                               {att?.checkIn
                                 ? `เช็คอิน ${formatTime(att.checkIn)}${
-                                    att.checkOut ? ` · เช็คเอาท์ ${formatTime(att.checkOut)}` : ''
+                                    att.checkOut
+                                      ? ` · เช็คเอาท์ ${formatTime(att.checkOut)}`
+                                      : ''
                                   }`
                                 : 'ยังไม่ได้ลงเวลา'}
                             </p>

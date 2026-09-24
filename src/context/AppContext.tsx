@@ -37,7 +37,11 @@ interface AppContextValue {
   login: (employeeId: number) => void;
   logout: () => void;
   addLeaveRequest: (input: NewLeaveRequestInput) => LeaveRequest;
-  updateLeaveStatus: (requestId: number, status: 'approved' | 'rejected') => boolean;
+  updateLeaveStatus: (
+    requestId: number,
+    status: 'approved' | 'rejected',
+    reason?: string
+  ) => boolean;
   toggleAttendance: (employeeId: number) => AttendanceAction;
 }
 
@@ -92,10 +96,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /**
    * ⭐ updateLeaveStatus — มีการ guard ด้วย canApprove()
-   * คืนค่า true ถ้าสำเร็จ, false ถ้าถูกบล็อก
+   * และรองรับการบันทึก rejectReason เมื่อสถานะเป็น rejected
    */
   const updateLeaveStatus = useCallback(
-    (requestId: number, status: 'approved' | 'rejected'): boolean => {
+    (
+      requestId: number,
+      status: 'approved' | 'rejected',
+      reason?: string
+    ): boolean => {
       const target = leaveRequests.find((r) => r.id === requestId);
       if (!target) return false;
       if (!user) return false;
@@ -109,12 +117,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       const nextRequests = leaveRequests.map((r) =>
-        r.id === requestId ? { ...r, status } : r
+        r.id === requestId
+          ? {
+              ...r,
+              status,
+              rejectReason: status === 'rejected' ? (reason || r.rejectReason) : undefined,
+            }
+          : r
       );
       setLeaveRequests(nextRequests);
       storage.saveLeaveRequests(nextRequests);
 
-      // Audit log
+      // Audit log พร้อมบันทึกเหตุผล
       const log: AuditLog = {
         id: Date.now(),
         action: status === 'approved' ? 'approve' : 'reject',
@@ -123,6 +137,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         targetLeaveRequestId: target.id,
         targetEmployeeName: target.employeeName,
         timestamp: new Date().toISOString(),
+        details:
+          status === 'rejected' && reason
+            ? `เหตุผลที่ไม่อนุมัติ: ${reason}`
+            : undefined,
       };
       const nextLogs = [log, ...auditLogs];
       setAuditLogs(nextLogs);
@@ -155,7 +173,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       if (!existing || !existing.checkIn) {
         const record: AttendanceRecord = {
-          employeeId, date: today, checkIn: nowIso, checkOut: null,
+          employeeId,
+          date: today,
+          checkIn: nowIso,
+          checkOut: null,
         };
         const next = [
           ...attendance.filter(
@@ -186,13 +207,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AppContextValue>(
     () => ({
-      user, employees, departments: DEPARTMENTS,
-      leaveRequests, attendance, auditLogs,
-      login, logout, addLeaveRequest, updateLeaveStatus, toggleAttendance,
+      user,
+      employees,
+      departments: DEPARTMENTS,
+      leaveRequests,
+      attendance,
+      auditLogs,
+      login,
+      logout,
+      addLeaveRequest,
+      updateLeaveStatus,
+      toggleAttendance,
     }),
     [
-      user, employees, leaveRequests, attendance, auditLogs,
-      login, logout, addLeaveRequest, updateLeaveStatus, toggleAttendance,
+      user,
+      employees,
+      leaveRequests,
+      attendance,
+      auditLogs,
+      login,
+      logout,
+      addLeaveRequest,
+      updateLeaveStatus,
+      toggleAttendance,
     ]
   );
 

@@ -1,20 +1,21 @@
-export type Role = 'employee' | 'manager' | 'hr_admin' | 'top_management';
-
 export type LeaveType = 'ป่วย' | 'กิจ' | 'พักร้อน' | 'คลอด';
 
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
+export type Role = 'employee' | 'manager' | 'hr_admin' | 'top_management';
+
 export interface Employee {
   id: number;
   name: string;
-  role: Role;
-  department: string;
-  leaveBalance: number;
   email: string;
+  department: string;
+  role: Role;
   position: string;
-  /** id ของคนที่อนุมัติคำขอลาของคนนี้ (null = ไม่ต้องอนุมัติ เช่น top management) */
+  leaveBalance: number;
   approverId: number | null;
 }
+
+export type CurrentUser = Employee;
 
 export interface LeaveRequest {
   id: number;
@@ -24,11 +25,13 @@ export interface LeaveRequest {
   leaveType: LeaveType;
   startDate: string;
   endDate: string;
+  days?: number;
   reason: string;
   status: LeaveStatus;
-  createdAt: string;
-  /** ผู้อนุมัติที่ถูกกำหนด ณ ตอนสร้างคำขอ */
-  approverId: number | null;
+  approverId?: number | null;
+  isEscalated?: boolean;
+  createdAt?: string;
+  rejectReason?: string;
 }
 
 export interface Department {
@@ -40,16 +43,17 @@ export interface Department {
 export interface AttendanceRecord {
   employeeId: number;
   date: string;
-  checkIn: string | null;
+  checkIn: string;
   checkOut: string | null;
 }
 
 export interface AuditLog {
   id: number;
-  action: 'approve' | 'reject' | 'edit_balance';
+  timestamp: string;
+  action: 'approve' | 'reject' | 'edit';
   performedBy: number;
   performedByName: string;
-  targetLeaveRequestId: number;
   targetEmployeeName: string;
-  timestamp: string;
+  targetLeaveRequestId: number;
+  details?: string;
 }

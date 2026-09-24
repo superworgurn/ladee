@@ -40,10 +40,10 @@ export default function HRAdminDashboard() {
 
   const totalStaff = employees.filter((e) => e.role !== 'top_management').length;
 
-  const handleDecision = (id: number, status: 'approved' | 'rejected') => {
+  const handleDecision = (id: number, status: 'approved' | 'rejected', reason?: string) => {
     setBusyId(id);
     window.setTimeout(() => {
-      const ok = updateLeaveStatus(id, status);
+      const ok = updateLeaveStatus(id, status, reason);
       setBusyId(null);
       if (ok) {
         showToast(
@@ -247,7 +247,9 @@ export default function HRAdminDashboard() {
                   </div>
                   <StatusBadge status={req.status} />
                 </div>
-                <ApprovalActions request={req} onDecision={handleDecision} />
+                <div className="mt-3">
+                  <ApprovalActions request={req} onDecision={handleDecision} isSelfRequest={true} />
+                </div>
               </Card>
             ))}
           </div>

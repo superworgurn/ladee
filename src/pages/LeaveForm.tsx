@@ -27,10 +27,37 @@ export default function LeaveForm() {
   const [errors, setErrors] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  /** คำนวณจำนวนวันทำงานที่ขอ (ตัดเสาร์-อาทิตย์) */
   const requestedDays = useMemo(
     () => diffInDaysInclusive(startDate, endDate),
     [startDate, endDate]
   );
+
+  /**
+   * คำนวณวันลาที่ "รออนุมัติ" ของผู้ใช้คนนี้
+   * เพื่อป้องกันไม่ให้ส่งคำขอซ้อนทับจนยอดเกิน
+   */
+  const pendingDays = useMemo(() => {
+    if (!user) return 0;
+    return leaveRequests
+      .filter(
+        (req) =>
+          req.employeeId === user.id &&
+          req.status === 'pending'
+      )
+      .reduce((total, req) => {
+        return total + diffInDaysInclusive(req.startDate, req.endDate);
+      }, 0);
+  }, [user, leaveRequests]);
+
+  /** คำนวณยอดคงเหลือที่ใช้ได้จริง = ยอดรวม - ยอดที่รออนุมัติ */
+  const availableBalance = user ? user.leaveBalance - pendingDays : 0;
+
+  /** ตรวจว่ายอดไม่พอหรือไม่ */
+  const balanceNotEnough = requestedDays > availableBalance;
+
+  /** ตรวจว่าผู้ใช้เป็น HR Admin หรือไม่ (สำหรับลาแบบหลอกๆ) */
+  const isHRAdmin = user?.role === 'hr_admin';
 
   /** ตรวจกำลังคนแบบ live */
   const staffingWarning = useMemo(() => {
@@ -51,8 +78,6 @@ export default function LeaveForm() {
 
   if (!user) return null;
 
-  const balanceNotEnough = requestedDays > user.leaveBalance;
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -67,10 +92,20 @@ export default function LeaveForm() {
     if (reason.trim().length < 3) {
       nextErrors.push('กรุณาระบุเหตุผลการลา (อย่างน้อย 3 ตัวอักษร)');
     }
-    if (requestedDays > user.leaveBalance) {
+
+    /**
+     * เช็คกับ availableBalance แทน leaveBalance
+     * สำหรับ HR Admin (ลาแบบหลอกๆ) ไม่ต้องเช็คยอด
+     */
+    if (!isHRAdmin && requestedDays > availableBalance) {
       nextErrors.push(
-        `วันลาคงเหลือไม่พอ (ต้องการ ${requestedDays} วัน แต่มี ${user.leaveBalance} วัน)`
+        `วันลาคงเหลือไม่พอ (ต้องการ ${requestedDays} วัน แต่เหลือใช้ได้จริง ${availableBalance} วัน)`
       );
+    }
+
+    /** สำหรับพนักงานทั่วไป: ถ้าขอ 0 วัน (เช่น ลาเฉพาะเสาร์-อาทิตย์) */
+    if (!isHRAdmin && requestedDays === 0) {
+      nextErrors.push('ช่วงวันที่เลือกไม่มีวันทำงาน (ตรงกับเสาร์-อาทิตย์ทั้งหมด)');
     }
 
     setErrors(nextErrors);
@@ -86,11 +121,28 @@ export default function LeaveForm() {
         startDate,
         endDate,
         reason: reason.trim(),
-        approverId: user.approverId,
+        /**
+         * HR Admin ลาแบบหลอกๆ:
+         * ไม่ต้องมี approver (approverId = null)
+         * ระบบจะ auto-approve หรือแสดงเป็นข้อมูลสาธิต
+         */
+        approverId: isHRAdmin ? null : user.approverId,
       });
 
       setSubmitting(false);
-      showToast('ส่งคำขอลาสำเร็จ รอการอนุมัติจากหัวหน้า', 'success');
+
+      if (isHRAdmin) {
+        showToast(
+          'ส่งคำขอลาสำเร็จ (โหมดสาธิตสำหรับ HR — ไม่ต้องรออนุมัติ)',
+          'info'
+        );
+      } else {
+        showToast(
+          'ส่งคำขอลาสำเร็จ รอการอนุมัติจากหัวหน้า',
+          'success'
+        );
+      }
+
       navigate('/leave/history');
     }, 700);
   };
@@ -99,13 +151,36 @@ export default function LeaveForm() {
     <div className="space-y-6">
       <PageHeader
         title="ขอลาหยุดงาน"
-        subtitle={`${user.name} · ${user.department} · วันลาคงเหลือ ${user.leaveBalance} วัน`}
+        subtitle={
+          isHRAdmin
+            ? `${user.name} · ${user.department} · โหมดสาธิต (HR Admin)`
+            : `${user.name} · ${user.department} · วันลาคงเหลือ ${availableBalance} วัน`
+        }
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* ฟอร์ม */}
         <Card className="lg:col-span-2 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {/* แจ้งเตือนสำหรับ HR Admin */}
+            {isHRAdmin && (
+              <div className="flex items-start gap-3 rounded-xl border border-sky-200 bg-sky-50/70 p-4 text-xs text-sky-900">
+                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-sky-200 font-bold text-sky-800">
+                  ℹ
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-sky-950">
+                    โหมดสาธิตสำหรับ HR Admin
+                  </p>
+                  <p className="mt-0.5 text-sky-800 leading-relaxed">
+                    คำขอลาของ HR Admin จะถูกบันทึกเป็นข้อมูลสาธิต
+                    ไม่ต้องรออนุมัติจากผู้บริหาร
+                    (บทบาทหลักของ HR คือการอนุมัติ/ปฏิเสธคำขอของพนักงาน)
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* ประเภทการลา */}
             <div>
               <label
@@ -170,7 +245,7 @@ export default function LeaveForm() {
             <div
               className={[
                 'flex items-center justify-between rounded-xl px-4 py-3.5 text-sm transition-colors ring-1 ring-inset',
-                balanceNotEnough
+                !isHRAdmin && balanceNotEnough
                   ? 'bg-rose-50/80 text-rose-800 ring-rose-200'
                   : 'bg-indigo-50/60 text-indigo-900 ring-indigo-200/70',
               ].join(' ')}
@@ -179,15 +254,40 @@ export default function LeaveForm() {
                 <svg className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                รวมจำนวนวันลา
+                รวมจำนวนวันทำงาน
               </span>
               <span className="font-bold text-base">
                 {requestedDays > 0 ? requestedDays : 0} วัน
-                {balanceNotEnough && (
-                  <span className="ml-2 text-xs font-semibold text-rose-600">(เกินวันลาคงเหลือ!)</span>
+                {!isHRAdmin && balanceNotEnough && (
+                  <span className="ml-2 text-xs font-semibold text-rose-600">
+                    (เกินวันลาคงเหลือ!)
+                  </span>
                 )}
               </span>
             </div>
+
+            {/* แสดงสรุปยอดวันลาสำหรับพนักงานทั่วไป */}
+            {!isHRAdmin && (
+              <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                  สรุปวันลาคงเหลือ
+                </h4>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">ยอดรวมทั้งหมด</span>
+                    <span className="font-semibold text-slate-800">{user.leaveBalance} วัน</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">รออนุมัติ (หักออก)</span>
+                    <span className="font-semibold text-amber-600">- {pendingDays} วัน</span>
+                  </div>
+                  <div className="flex justify-between border-t border-slate-200 pt-1.5 mt-1.5">
+                    <span className="font-semibold text-slate-700">คงเหลือใช้ได้จริง</span>
+                    <span className="font-bold text-indigo-600">{availableBalance} วัน</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* เหตุผล */}
             <div>
@@ -298,7 +398,7 @@ export default function LeaveForm() {
                 </dd>
               </div>
               <div className="flex justify-between py-2.5">
-                <dt className="font-semibold text-slate-600">รวมระยะเวลา</dt>
+                <dt className="font-semibold text-slate-600">รวมวันทำงาน</dt>
                 <dd className="font-bold text-indigo-600">
                   {requestedDays > 0 ? requestedDays : 0} วัน
                 </dd>
@@ -314,6 +414,10 @@ export default function LeaveForm() {
               ข้อควรรู้
             </h3>
             <ul className="mt-2.5 space-y-2 text-xs leading-relaxed text-slate-600">
+              <li className="flex items-start gap-1.5">
+                <span className="text-indigo-500">•</span>
+                <span>นับเฉพาะวันทำงาน (จันทร์-ศุกร์) ไม่รวมเสาร์-อาทิตย์</span>
+              </li>
               <li className="flex items-start gap-1.5">
                 <span className="text-indigo-500">•</span>
                 <span>คำขอใหม่จะมีสถานะเป็น <strong>"รออนุมัติ"</strong></span>

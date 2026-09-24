@@ -1,59 +1,96 @@
-import { useApp } from '../context/AppContext';
+import { useState } from 'react';
 import type { LeaveRequest } from '../types';
-import { canApprove, getApprovalBlockReason } from '../utils/approval';
 
-interface ApprovalActionsProps {
+export interface ApprovalActionsProps {
   request: LeaveRequest;
-  onDecision: (id: number, status: 'approved' | 'rejected') => void;
+  onDecision: (id: number, status: 'approved' | 'rejected', reason?: string) => void;
   busy?: boolean;
-  compact?: boolean;
+  isSelfRequest?: boolean;
 }
 
 export function ApprovalActions({
   request,
   onDecision,
   busy = false,
-  compact = false,
+  isSelfRequest = false,
 }: ApprovalActionsProps) {
-  const { user, employees } = useApp();
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
 
-  const allowed = canApprove(request, user);
-  const blockReason = allowed
-    ? null
-    : getApprovalBlockReason(request, user, employees);
-
-  if (!allowed) {
+  // กรณีเป็นคำขอของตนเอง (หัวหน้าส่งหา HR)
+  if (isSelfRequest) {
     return (
-      <div
-        className={`flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-900 ${compact ? '' : 'mt-2'}`}
-      >
-        <span className="text-sm leading-none">⚠️</span>
-        <p className="flex-1">{blockReason ?? 'ไม่สามารถดำเนินการได้'}</p>
-      </div>
+      <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-inset ring-purple-200">
+        <span>👔</span> คำขอส่งถึง HR แล้ว (รอ HR อนุมัติ)
+      </span>
     );
   }
 
+  const handleConfirmReject = () => {
+    onDecision(request.id, 'rejected', rejectReason.trim());
+    setShowRejectModal(false);
+    setRejectReason('');
+  };
+
   return (
-    <div className={compact ? 'flex gap-2' : 'flex gap-2 sm:flex-col'}>
-      <button
-        type="button"
-        onClick={() => onDecision(request.id, 'approved')}
-        disabled={busy}
-        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-emerald-200 transition hover:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 disabled:opacity-60 sm:min-w-[110px]"
-      >
-        {busy ? (
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
-        ) : ('✓')}
-        อนุมัติ
-      </button>
-      <button
-        type="button"
-        onClick={() => onDecision(request.id, 'rejected')}
-        disabled={busy}
-        className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-rose-300 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2 disabled:opacity-60 sm:min-w-[110px]"
-      >
-        ✕ ปฏิเสธ
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => onDecision(request.id, 'approved')}
+          disabled={busy}
+          className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95 disabled:opacity-50 cursor-pointer"
+        >
+          {busy ? 'กำลังบันทึก...' : '✓ อนุมัติ'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowRejectModal(true)}
+          disabled={busy}
+          className="inline-flex items-center justify-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 shadow-2xs transition hover:bg-rose-50 hover:border-rose-200 active:scale-95 disabled:opacity-50 cursor-pointer"
+        >
+          ✕ ปฏิเสธ
+        </button>
+      </div>
+
+      {showRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <h3 className="text-sm font-bold text-slate-900">
+              ระบุเหตุผลการไม่อนุมัติ
+            </h3>
+            <p className="mt-1 text-xs text-slate-500">
+              คำขอของ {request.employeeName} (ลา{request.leaveType})
+            </p>
+            <textarea
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="กรอกเหตุผลเพื่อแจ้งให้พนักงานทราบ..."
+              className="mt-3 w-full rounded-xl border border-slate-200 p-2.5 text-xs text-slate-800 outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setRejectReason('');
+                }}
+                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-700 transition cursor-pointer"
+              >
+                ยืนยันการปฏิเสธ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
